@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as fs from 'fs';
 
-function countBytes(content: string): number {
+function countBytes(content: Buffer): number {
   return content.length;
 }
 
@@ -25,9 +25,10 @@ const filePath = args.find(arg => !arg.startsWith('-'));
 
 if (!filePath) {
   // Read from standard input
-  let inputData = '';
+  let inputData = Buffer.alloc(0);
+
   process.stdin.on('data', chunk => {
-    inputData += chunk;
+    inputData = Buffer.concat([inputData, chunk]);
   });
 
   process.stdin.on('end', () => {
@@ -36,7 +37,7 @@ if (!filePath) {
 } else {
   // Read from file
   try {
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const fileContent = fs.readFileSync(filePath);
     processData(fileContent);
   } catch (error) {
     console.error(`Error reading the file: ${error.message}`);
@@ -44,23 +45,31 @@ if (!filePath) {
   }
 }
 
-function processData(content: string) {
+function processData(content: string | Buffer) {
   if (!options.length) {
-    console.log(`${countCharacters(content)}\t${countLines(content)}\t${countWords(content)}\t${filePath ?? ''}`);
+    const bytes = countBytes(
+      typeof content === 'string'
+        ? Buffer.from(content, 'utf-8')
+        : content
+    );
+    const lines = countLines(content.toString('utf-8'));
+    const words = countWords(content.toString('utf-8'));
+
+    console.log(`${bytes}\t${lines}\t${words}\t${filePath ?? ''}`);
   } else {
     for (const option of options) {
       switch (option) {
         case '-c':
-          console.log(`Number of bytes: ${countBytes(content)}`);
+          console.log(`Number of bytes: ${countBytes(content as Buffer)}`);
           break;
         case '-l':
-          console.log(`Number of lines: ${countLines(content)}`);
+          console.log(`Number of lines: ${countLines(content.toString('utf-8'))}`);
           break;
         case '-w':
-          console.log(`Number of words: ${countWords(content)}`);
+          console.log(`Number of words: ${countWords(content.toString('utf-8'))}`);
           break;
         case '-m':
-          console.log(`Number of characters: ${countCharacters(content)}`);
+          console.log(`Number of characters: ${countCharacters(content.toString('utf-8'))}`);
           break;
         default:
           console.error(`Invalid Option: ${option}`);
